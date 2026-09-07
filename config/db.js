@@ -16,32 +16,48 @@ class DatabaseConnectionManager {
   }
 
   async connect() {
+    if (mongoose.connection.readyState === 1) {
+      this.isConnected = true;
+      return {
+        isConnected: true,
+        connectionType: this.connectionType || 'MongoDB Host',
+        host: mongoose.connection.host,
+        dbName: mongoose.connection.name
+      };
+    }
+
     const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/catalogue_db';
 
     try {
-      // Attempt 1: Connect to configured MongoDB URI (Local or Atlas)
-      console.log(`Connecting to MongoDB at: ${mongoUri}...`);
+      const maskedUri = mongoUri.replace(/:([^@]+)@/, ':****@');
+      console.log(`Connecting to MongoDB at: ${maskedUri}...`);
       await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 3000,
+        serverSelectionTimeoutMS: 5000,
       });
       this.isConnected = true;
       this.connectionType = 'MongoDB Host';
       console.log(`MongoDB Connected successfully (${this.connectionType})`);
     } catch (err) {
-      console.warn(`Could not connect to target MongoDB (${err.message}). Initializing MongoMemoryServer fallback...`);
-      
-      try {
-        // Attempt 2: Fallback to MongoDB Memory Server for standalone environments
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        this.mongoServer = await MongoMemoryServer.create();
-        const memoryUri = this.mongoServer.getUri();
-        
-        await mongoose.connect(memoryUri);
-        this.isConnected = true;
-        this.connectionType = 'Embedded MongoMemoryServer (In-Memory)';
-        console.log(`MongoDB Connected successfully (${this.connectionType})`);
-      } catch (memErr) {
-        console.error(`Failed to start MongoMemoryServer: ${memErr.message}`);
+      console.warn(`Could not connect to target MongoDB (${err.message}).`);
+
+      // Only attempt MongoMemoryServer in local environment (NOT on Vercel)
+      if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production') {
+        try {
+          console.log("Initializing MongoMemoryServer fallback for local dev...");
+          const { MongoMemoryServer } = require('mongodb-memory-server');
+          this.mongoServer = await MongoMemoryServer.create();
+          const memoryUri = this.mongoServer.getUri();
+
+          await mongoose.connect(memoryUri);
+          this.isConnected = true;
+          this.connectionType = 'Embedded MongoMemoryServer (In-Memory)';
+          console.log(`MongoDB Connected successfully (${this.connectionType})`);
+        } catch (memErr) {
+          console.error(`Failed to start MongoMemoryServer: ${memErr.message}`);
+          this.isConnected = false;
+          this.connectionType = 'Disconnected';
+        }
+      } else {
         this.isConnected = false;
         this.connectionType = 'Disconnected';
       }
