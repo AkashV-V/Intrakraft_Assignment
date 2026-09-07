@@ -1,88 +1,78 @@
-# Intrakraft_Assignment
+# Intrakraft Assignment — Full-Stack Catalogue, Cart & Grade Ratio System
 
-## Full-Stack Catalogue, Cart & Grade Ratio System
-
-A comprehensive Node.js, Express, MongoDB, and React application designed for managing product catalogues, cart items, size distributions, and grade-wise ratio calculations.
-
----
-
-## 🛠️ Features & Architectural Highlights
-
-1. **Node.js & Express REST API Backend**:
-   - Clean client-server architecture using RESTful principles, HTTP status codes, and standard JSON formats.
-   - Authentication & Authorization via JWT tokens and bcrypt password hashing.
-
-2. **MongoDB Integration (Local & Cloud Atlas)**:
-   - Mongoose Schemas for `Product`, `CartItem`, `GradeRatio`, and `User`.
-   - Built-in `MongoMemoryServer` fallback to run out of the box even without a pre-configured MongoDB service.
-
-3. **Data Structures & Grade Ratio Calculation Engine**:
-   - OOP Service (`GradeRatioEngine.js`) handling size ranking, dynamic grouping (by Brick, Category, Brick + Neck, etc.), and grade-wise size quantity distribution calculations.
-
-4. **Interactive CLI & Database Tooling**:
-   - Automated CLI test suite (`new.js`) verifying database connections, auth tokens, ratio calculations, and bulk inserts.
-
-5. **Modern Frontend Web App (`index.html`)**:
-   - Built with React & Vanilla CSS.
-   - Real-time MongoDB connection indicator, Excel file parser, and REST API sync for Catalogue & Cart.
+🌐 **Live Working Application**: [https://intrakraft.vercel.app/](https://intrakraft.vercel.app/)  
+📦 **GitHub Repository**: [https://github.com/AkashV-V/Intrakraft_Assignment](https://github.com/AkashV-V/Intrakraft_Assignment)
 
 ---
 
-## 🚀 Getting Started
+## 📐 Grade-Wise Ratio Approach
+
+The application manages grade-wise size distribution across inventory items using an Object-Oriented Service (`GradeRatioEngine.js`):
+
+1. **Known Size Order Indexing Algorithm**:
+   - Maintains a canonical data structure array (`SIZE_ORDER`) covering standard size notation (XXS to 4XL, Kids age brackets, numeric waist sizes 28-46).
+   - Unrecognized sizes maintain their catalogue file order.
+
+2. **Dynamic Multi-Level Grouping**:
+   - Products in the Cart are grouped dynamically based on selected attribute levels:
+     - `Brick` (e.g. *Shirts*, *Jeans*)
+     - `Category` (e.g. *Formalwear*, *Casualwear*)
+     - `Brick + Neck` (e.g. *Shirts / Collar*)
+     - `Brick + Sleeve` (e.g. *T-Shirts / Half Sleeve*)
+   - Distinct groups are created per `(GroupKey, Grade)` combination (e.g., *Shirts / Collar | Grade A* vs *Shirts / Collar | Grade B*).
+
+3. **Ratio Calculation & Multiplier Algorithm**:
+   - Each `(GroupKey, Grade)` combination accepts a size-to-multiplier mapping.
+   - For every product matching that group key and grade, the final size quantity is computed as:  
+     $$\text{Quantity}(\text{size}) = \text{Ratio}(\text{size}) \times \text{Sets}$$
+   - Quantities are stored in MongoDB (`CartItem` schema) and updated server-side or synced via REST API (`POST /api/ratios/apply`).
+
+---
+
+## 🛠️ Brief Setup & Run Instructions
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18+)
 - [MongoDB](https://www.mongodb.com/) (Local or MongoDB Atlas)
 
-### Installation
+### Local Execution
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/AkashV-V/Intrakraft_Assignment.git
 cd Intrakraft_Assignment
 
-# Install dependencies
+# 2. Install dependencies
 npm install
-```
 
-### Environment Configuration
-Copy `.env.example` to `.env` and set your MongoDB URI:
-```env
-PORT=5050
-MONGODB_URI=mongodb+srv://username:password@cluster0.xxx.mongodb.net/catalogue_db?retryWrites=true&w=majority
-JWT_SECRET=super_secret_jwt_key
-NODE_ENV=development
-```
+# 3. Create .env file (or use existing)
+cp .env.example .env
 
-### Running the Application
-
-```bash
-# Start the Express REST API Server
+# 4. Start the Express REST API server & Web Client
 npm start
+```
+Open `http://localhost:5050` in your browser.
 
-# Run the automated CLI Database & Tooling Suite
-npm run tool
-# or
+### Run CLI Database & Tooling Suite
+```bash
+# Run automated CLI test suite for MongoDB, JWT Auth, and Ratio Calculations
 node new.js
 ```
 
-Open your browser and navigate to `http://localhost:5050`.
-
 ---
 
-## 📊 API Endpoints Overview
+## 📊 REST API Endpoints Overview
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/auth/register` | User signup with hashed password |
+| `POST` | `/api/auth/register` | User signup with bcrypt hashed password |
 | `POST` | `/api/auth/login` | User login & JWT token issuance |
-| `GET`  | `/api/products` | Fetch catalogue products with filters |
+| `GET`  | `/api/products` | Fetch catalogue products from MongoDB |
 | `POST` | `/api/products/batch` | Batch upsert products from Excel / JSON |
+| `DELETE`| `/api/products` | Clear products collection in MongoDB |
 | `GET`  | `/api/cart` | Get cart items with computed line totals |
 | `POST` | `/api/cart/sync` | Sync client cart state to MongoDB |
+| `DELETE`| `/api/cart` | Clear cart collection in MongoDB |
 | `POST` | `/api/ratios/apply` | Apply grade ratio rules across cart items |
 | `GET`  | `/api/tools/db-stats` | Fetch collection stats & database status |
-
----
-
-## 📄 License
-ISC License.
+| `POST` | `/api/tools/seed` | Seed sample catalogue data into MongoDB |
