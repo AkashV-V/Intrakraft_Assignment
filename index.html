@@ -483,6 +483,7 @@ function App() {
 
   useEffect(() => {
     checkDbStatus();
+    loadProductsFromDb();
     const interval = setInterval(checkDbStatus, 8000);
     return () => clearInterval(interval);
   }, [checkDbStatus]);
@@ -490,32 +491,30 @@ function App() {
   // Load products from MongoDB if available
   const loadProductsFromDb = async () => {
     try {
-      const res = await fetch("/api/products?limit=500");
+      const res = await fetch("/api/products?limit=1000");
       const data = await res.json();
       if (data.success && data.data.length > 0) {
         setProducts(data.data);
-        setFileName("Loaded from MongoDB Database");
+        setFileName("MongoDB Database");
         showToast(`Loaded ${data.data.length} products from MongoDB!`);
-      } else {
-        showToast("No products found in MongoDB. You can seed or upload Excel!");
       }
     } catch (err) {
-      showToast("Error connecting to MongoDB API");
+      console.warn("Could not load products from MongoDB API", err);
     }
   };
 
   // Sync Excel uploaded products to MongoDB
-  const syncProductsToDb = async () => {
-    if (products.length === 0) return showToast("No products to sync");
+  const syncProductsToDb = async (productList = products) => {
+    if (productList.length === 0) return showToast("No products to sync");
     try {
       const res = await fetch("/api/products/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ products }),
+        body: JSON.stringify({ products: productList }),
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`MongoDB Sync: ${data.inserted} inserted, ${data.modified} updated`);
+        showToast(`MongoDB Synced! Total: ${productList.length} products`);
         checkDbStatus();
       }
     } catch (err) {
@@ -580,7 +579,7 @@ function App() {
 
   const handleFile = useCallback((file) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const data = new Uint8Array(e.target.result);
       const wb = XLSX.read(data, { type: "array" });
       const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -590,10 +589,27 @@ function App() {
       setProducts(built);
       setFileName(file.name);
       setTab("catalogue");
-      showToast(`Loaded ${built.length} products from Excel!`);
+      
+      // Immediately upload and save products to MongoDB database!
+      try {
+        const res = await fetch("/api/products/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ products: built }),
+        });
+        const apiData = await res.json();
+        if (apiData.success) {
+          showToast(`Uploaded ${built.length} products directly into MongoDB!`);
+          checkDbStatus();
+        } else {
+          showToast(`Loaded ${built.length} products locally`);
+        }
+      } catch (err) {
+        showToast(`Loaded ${built.length} products locally`);
+      }
     };
     reader.readAsArrayBuffer(file);
-  }, []);
+  }, [checkDbStatus]);
 
   const bricks = useMemo(() => {
     const s = new Set(products.map((p) => p.brick));
