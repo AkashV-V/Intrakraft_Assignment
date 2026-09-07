@@ -1,0 +1,26 @@
+{
+  "name": "catalogue-cart-grade-ratio",
+  "version": "1.0.0",
+  "description": "Full-stack Catalogue, Cart & Grade Ratio system with Node.js REST APIs, MongoDB integration, and DB Tools",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "tool": "node new.js",
+    "seed": "node -e \"require('./new.js')\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^9.2.0",
+    "nodemon": "^3.1.0"
+  }
+}

@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Catalogue → Cart → Grade Ratio (MongoDB & Node.js REST API Enabled)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2321;
+    --ink-soft:#5b6660;
+    --paper:#f6f5f1;
+    --card:#ffffff;
+    --line:#dfe0da;
+    --accent:#2f6f4f;
+    --accent-soft:#e6efe9;
+    --grade-a:#2f6f4f;
+    --grade-b:#a06a2b;
+    --grade-c:#7a4fa0;
+    --grade-d:#8a8a3c;
+    --danger:#a8382f;
+    --db-green:#10b981;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    --sans: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+  }
+  header.top{
+    background:var(--ink);
+    color:#f6f5f1;
+    padding:16px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header.top .brand{
+    font-family:var(--mono);
+    letter-spacing:0.02em;
+    font-size:15px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  header.top .brand b{color:#8fd6b0;}
+  .db-status-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:rgba(255,255,255,0.1);
+    padding:4px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-family:var(--mono);
+    color:#e2e8f0;
+  }
+  .dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#94a3b8;
+  }
+  .dot.connected{
+    background:var(--db-green);
+    box-shadow:0 0 8px var(--db-green);
+  }
+  nav.steps{
+    display:flex;
+    gap:2px;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    padding:0 24px;
+    overflow-x:auto;
+  }
+  nav.steps button{
+    border:none;
+    background:transparent;
+    padding:14px 18px;
+    font-size:13.5px;
+    font-family:var(--sans);
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    white-space:nowrap;
+  }
+  nav.steps button.active{
+    color:var(--ink);
+    border-bottom:2px solid var(--accent);
+    font-weight:600;
+  }
+  nav.steps button .count{
+    display:inline-block;
+    margin-left:6px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    border-radius:10px;
+    padding:1px 7px;
+    font-size:11.5px;
+    font-family:var(--mono);
+  }
+  main{
+    max-width:1200px;
+    margin:0 auto;
+    padding:24px;
+  }
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px;
+    margin-bottom:18px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.03);
+  }
+  .panel h2{
+    margin:0 0 4px 0;
+    font-size:16px;
+  }
+  .panel p.hint{
+    margin:0 0 16px 0;
+    color:var(--ink-soft);
+    font-size:12.8px;
+    line-height:1.5;
+  }
+  .upload-box{
+    border:1.5px dashed var(--line);
+    border-radius:6px;
+    padding:24px;
+    text-align:center;
+    color:var(--ink-soft);
+    background:#fafaf8;
+  }
+  .upload-box input[type=file]{
+    margin-top:10px;
+  }
+  .btn{
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    padding:8px 14px;
+    border-radius:4px;
+    font-size:13px;
+    cursor:pointer;
+    font-family:var(--sans);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .btn:hover{opacity:0.88;}
+  .btn.primary{background:var(--accent);}
+  .btn.ghost{
+    background:transparent;
+    color:var(--ink);
+    border:1px solid var(--line);
+  }
+  .btn.small{padding:5px 10px;font-size:12px;}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .filters{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+    align-items:center;
+  }
+  .filters input, .filters select{
+    padding:7px 9px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-size:13px;
+    font-family:var(--sans);
+    background:#fff;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  th{
+    text-align:left;
+    color:var(--ink-soft);
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    border-bottom:1px solid var(--line);
+    padding:8px 8px;
+  }
+  td{
+    padding:9px 8px;
+    border-bottom:1px solid #edece7;
+    vertical-align:middle;
+  }
+  tr:hover td{background:#fbfaf7;}
+  .code{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+  .sizes-inline{color:var(--ink-soft);font-size:12px;}
+  select.grade-select{
+    padding:5px 6px;
+    border-radius:4px;
+    border:1px solid var(--line);
+    font-family:var(--mono);
+    font-size:12.5px;
+  }
+  .grade-pill{
+    display:inline-block;
+    width:20px;height:20px;
+    border-radius:50%;
+    color:#fff;
+    text-align:center;
+    line-height:20px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    margin-right:6px;
+  }
+  .grade-a{background:var(--grade-a);}
+  .grade-b{background:var(--grade-b);}
+  .grade-c{background:var(--grade-c);}
+  .grade-d{background:var(--grade-d);}
+  .empty-state{
+    padding:36px 10px;
+    text-align:center;
+    color:var(--ink-soft);
+  }
+  .cart-item{
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px 14px;
+    margin-bottom:10px;
+    background:#fff;
+  }
+  .cart-item .row1{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .cart-item .title{font-weight:600;font-size:13.5px;}
+  .cart-item .meta{color:var(--ink-soft);font-size:12px;margin-top:2px;}
+  .size-grid{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .size-cell{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:56px;
+  }
+  .size-cell label{font-size:11px;color:var(--ink-soft);margin-bottom:3px;font-family:var(--mono);}
+  .size-cell input{
+    width:100%;
+    text-align:center;
+    padding:5px 2px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-family:var(--mono);
+  }
+  .sets-input{
+    width:52px;
+    padding:5px;
+    text-align:center;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-family:var(--mono);
+  }
+  .link-btn{
+    background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0;
+  }
+  .group-block{
+    border:1px solid var(--line);
+    border-radius:6px;
+    margin-bottom:12px;
+    overflow:hidden;
+  }
+  .group-block > .group-head{
+    background:#fafaf7;
+    padding:10px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid var(--line);
+  }
+  .group-head .gname{font-weight:600;font-size:13.5px;}
+  .group-head .gcount{color:var(--ink-soft);font-size:11.5px;}
+  .grade-ratio-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:10px 14px;
+    border-bottom:1px solid #f0efea;
+    flex-wrap:wrap;
+  }
+  .grade-ratio-row:last-child{border-bottom:none;}
+  .level-select{
+    padding:7px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-size:13px;
+    margin-bottom:16px;
+  }
+  .totals{
+    display:flex;
+    gap:22px;
+    padding:14px;
+    background:#fafaf7;
+    border-radius:6px;
+    border:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .totals .stat b{display:block;font-size:18px;font-family:var(--mono);}
+  .totals .stat span{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.03em;}
+  .banner{
+    background:var(--accent-soft);
+    color:#1c4230;
+    border:1px solid #bfe0cc;
+    border-radius:5px;
+    padding:9px 12px;
+    font-size:12.5px;
+    margin-bottom:14px;
+  }
+  .banner.warn{
+    background:#fbeee9;
+    border-color:#eecbbd;
+    color:#7a3b23;
+  }
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:14px;
+    margin-bottom:18px;
+  }
+  .stat-card{
+    background:#fafaf7;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:14px;
+  }
+  .stat-card .val{font-size:24px;font-weight:bold;font-family:var(--mono);color:var(--accent);}
+  .stat-card .lbl{font-size:12px;color:var(--ink-soft);margin-top:2px;text-transform:uppercase;}
+  .toast{
+    position:fixed;
+    bottom:20px;
+    right:20px;
+    background:var(--ink);
+    color:#fff;
+    padding:10px 16px;
+    border-radius:6px;
+    font-size:13px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    z-index:1000;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useCallback, useEffect } = React;
+
+const SIZE_ORDER = [
+  "XXS","Extra Small","XS","S","Small","M","Medium","L","Large","XL","X-Large","XXL","XX-Large","XXXL","XXX-Large","4XL",
+  "2-3Y","3-4Y","4-5Y","5-6Y","6-7Y","7-8Y","8-9Y","9-10Y","10-11Y","11-12Y","12-13Y","13-14Y","14-15Y","15-16Y",
+  "28","30","32","34","36","38","40","42","44","46"
+];
+
+const RATIO_LEVELS = {
+  "Brick": ["Brick"],
+  "Category": ["Category"],
+  "Brick + Neck": ["Brick", "Neck"],
+  "Brick + Sleeve": ["Brick", "Sleeve"],
+  "Brick + Category": ["Category", "Brick"],
+};
+
+const GRADES = ["A", "B", "C", "D"];
+
+function sizeRank(name) {
+  const i = SIZE_ORDER.indexOf(name);
+  return i === -1 ? 999 : i;
+}
+
+function sortSizes(list) {
+  return [...list].sort((a, b) => sizeRank(a) - sizeRank(b));
+}
+
+function clean(v) {
+  if (v === undefined || v === null) return "";
+  return String(v).trim();
+}
+
+function buildProducts(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    const styleCode = clean(r.Style_Code);
+    const colourCode = clean(r.Vendor_Colour_Code) || clean(r.IK_Colour_Code);
+    if (!styleCode) continue;
+    const key = styleCode + "__" + colourCode;
+    const sizeName = clean(r.Size_Name) || clean(r.Size_Code);
+    if (!map.has(key)) {
+      map.set(key, {
+        productKey: key,
+        styleCode,
+        styleName: clean(r.Style_Name),
+        colourName: clean(r.Vendor_Colour_Name) || clean(r.IK_Colour_Name) || "—",
+        brick: clean(r.Brick) || "—",
+        category: clean(r.Category) || "—",
+        vertical: clean(r.Vertical) || "—",
+        department: clean(r.Department) || "—",
+        sleeve: clean(r.Sleeve) || "—",
+        neck: clean(r.Neck) || "—",
+        mrp: Number(r.MRP) || 0,
+        sizes: [],
+        sizeSet: new Set(),
+      });
+    }
+    const p = map.get(key);
+    if (sizeName && !p.sizeSet.has(sizeName)) {
+      p.sizeSet.add(sizeName);
+      p.sizes.push(sizeName);
+    }
+  }
+  const products = [];
+  for (const p of map.values()) {
+    p.sizes = sortSizes(p.sizes);
+    delete p.sizeSet;
+    products.push(p);
+  }
+  return products;
+}
+
+function groupKeyFor(product, levelFields) {
+  return levelFields.map((f) => product[f.toLowerCase()] || "—").join(" / ");
+}
+
+function App() {
+  const [rawRows, setRawRows] = useState(null);
+  const [fileName, setFileName] = useState("");
+  const [products, setProducts] = useState([]);
+  const [tab, setTab] = useState("catalogue");
+  const [search, setSearch] = useState("");
+  const [brickFilter, setBrickFilter] = useState("");
+  const [pendingGrade, setPendingGrade] = useState({});
+  const [cart, setCart] = useState([]);
+  const [ratioLevel, setRatioLevel] = useState("Brick");
+  const [ratios, setRatios] = useState({});
+  const [dbStatus, setDbStatus] = useState({ isConnected: false, connectionType: "Checking...", collections: {} });
+  const [toast, setToast] = useState("");
+  const [authToken, setAuthToken] = useState(localStorage.getItem("jwt_token") || "");
+  const [user, setUser] = useState(null);
+  const fileInput = useRef(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3500);
+  };
+
+  // Fetch MongoDB Database Stats on mount
+  const checkDbStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tools/db-stats");
+      if (res.ok) {
+        const data = await res.json();
+        setDbStatus({
+          isConnected: data.database.isConnected,
+          connectionType: data.database.connectionType,
+          collections: data.collections,
+        });
+      }
+    } catch (e) {
+      setDbStatus({ isConnected: false, connectionType: "Offline / Server Disconnected", collections: {} });
+    }
+  }, []);
+
+  useEffect(() => {
+    checkDbStatus();
+    const interval = setInterval(checkDbStatus, 8000);
+    return () => clearInterval(interval);
+  }, [checkDbStatus]);
+
+  // Load products from MongoDB if available
+  const loadProductsFromDb = async () => {
+    try {
+      const res = await fetch("/api/products?limit=500");
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        setProducts(data.data);
+        setFileName("Loaded from MongoDB Database");
+        showToast(`Loaded ${data.data.length} products from MongoDB!`);
+      } else {
+        showToast("No products found in MongoDB. You can seed or upload Excel!");
+      }
+    } catch (err) {
+      showToast("Error connecting to MongoDB API");
+    }
+  };
+
+  // Sync Excel uploaded products to MongoDB
+  const syncProductsToDb = async () => {
+    if (products.length === 0) return showToast("No products to sync");
+    try {
+      const res = await fetch("/api/products/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`MongoDB Sync: ${data.inserted} inserted, ${data.modified} updated`);
+        checkDbStatus();
+      }
+    } catch (err) {
+      showToast("Failed to sync products to MongoDB");
+    }
+  };
+
+  // Sync Cart to MongoDB
+  const syncCartToDb = async () => {
+    try {
+      const res = await fetch("/api/cart/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cart, sessionId: "default_session" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Synced ${cart.length} cart items to MongoDB!`);
+        checkDbStatus();
+      }
+    } catch (err) {
+      showToast("Failed to sync cart to MongoDB");
+    }
+  };
+
+  // Load Cart from MongoDB
+  const loadCartFromDb = async () => {
+    try {
+      const res = await fetch("/api/cart?sessionId=default_session");
+      const data = await res.json();
+      if (data.success && data.data) {
+        const mapped = data.data.map((item) => ({
+          id: item.id || item.productKey + "__" + item.grade + "__" + Date.now(),
+          productKey: item.productKey,
+          grade: item.grade,
+          sets: item.sets,
+          sizeQty: item.sizeQty || {},
+        }));
+        setCart(mapped);
+        showToast(`Loaded ${mapped.length} cart items from MongoDB!`);
+      }
+    } catch (err) {
+      showToast("Failed to load cart from MongoDB");
+    }
+  };
+
+  // Seed sample database
+  const seedDatabase = async () => {
+    try {
+      const res = await fetch("/api/tools/seed", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setProducts(data.products);
+        setFileName("Seeded MongoDB Catalogue");
+        showToast(`Seeded ${data.count} products into MongoDB!`);
+        checkDbStatus();
+      }
+    } catch (err) {
+      showToast("Failed to seed MongoDB database");
+    }
+  };
+
+  const handleFile = useCallback((file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      setRawRows(json);
+      const built = buildProducts(json);
+      setProducts(built);
+      setFileName(file.name);
+      setTab("catalogue");
+      showToast(`Loaded ${built.length} products from Excel!`);
+    };
+    reader.readAsArrayBuffer(file);
+  }, []);
+
+  const bricks = useMemo(() => {
+    const s = new Set(products.map((p) => p.brick));
+    return [...s].sort();
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (brickFilter && p.brick !== brickFilter) return false;
+      if (!search) return true;
+      const hay = (p.styleCode + " " + p.styleName + " " + p.colourName).toLowerCase();
+      return hay.includes(search.toLowerCase());
+    });
+  }, [products, search, brickFilter]);
+
+  const productByKey = useMemo(() => {
+    const m = new Map();
+    products.forEach((p) => m.set(p.productKey || p.key, p));
+    return m;
+  }, [products]);
+
+  function addToCart(product) {
+    const pKey = product.productKey || product.key;
+    const grade = pendingGrade[pKey] || "A";
+    const id = pKey + "__" + grade + "__" + Date.now();
+    const sizeQty = {};
+    (product.sizes || []).forEach((s) => (sizeQty[s] = 0));
+    setCart((c) => [...c, { id, productKey: pKey, grade, sets: 1, sizeQty }]);
+    showToast(`Added ${product.styleName} (Grade ${grade}) to Cart`);
+  }
+
+  function removeFromCart(id) {
+    setCart((c) => c.filter((i) => i.id !== id));
+  }
+
+  function updateCartItem(id, patch) {
+    setCart((c) => c.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  }
+
+  function updateSizeQty(id, size, val) {
+    setCart((c) =>
+      c.map((i) =>
+        i.id === id ? { ...i, sizeQty: { ...i.sizeQty, [size]: Number(val) || 0 } } : i
+      )
+    );
+  }
+
+  const levelFields = RATIO_LEVELS[ratioLevel];
+
+  const activeGroups = useMemo(() => {
+    const map = new Map();
+    for (const item of cart) {
+      const product = productByKey.get(item.productKey);
+      if (!product) continue;
+      const gKey = groupKeyFor(product, levelFields);
+      const comboKey = gKey + "||" + item.grade;
+      if (!map.has(comboKey)) {
+        map.set(comboKey, { groupKey: gKey, grade: item.grade, sizes: new Set() });
+      }
+      (product.sizes || []).forEach((s) => map.get(comboKey).sizes.add(s));
+    }
+    return [...map.values()].map((g) => ({ ...g, sizes: sortSizes([...g.sizes]) }));
+  }, [cart, productByKey, levelFields]);
+
+  const groupsByName = useMemo(() => {
+    const m = new Map();
+    activeGroups.forEach((g) => {
+      if (!m.has(g.groupKey)) m.set(g.groupKey, []);
+      m.get(g.groupKey).push(g);
+    });
+    return [...m.entries()];
+  }, [activeGroups]);
+
+  function ratioKey(groupKey, grade) {
+    return ratioLevel + "||" + groupKey + "||" + grade;
+  }
+
+  function setRatioValue(groupKey, grade, size, val) {
+    const k = ratioKey(groupKey, grade);
+    setRatios((r) => ({
+      ...r,
+      [k]: { ...(r[k] || {}), [size]: Number(val) || 0 },
+    }));
+  }
+
+  function applyRatios() {
+    setCart((c) =>
+      c.map((item) => {
+        const product = productByKey.get(item.productKey);
+        if (!product) return item;
+        const gKey = groupKeyFor(product, levelFields);
+        const k = ratioKey(gKey, item.grade);
+        const ratio = ratios[k];
+        if (!ratio) return item;
+        const sizeQty = {};
+        (product.sizes || []).forEach((s) => {
+          sizeQty[s] = (ratio[s] || 0) * (item.sets || 1);
+        });
+        return { ...item, sizeQty };
+      })
+    );
+    showToast("Grade-wise ratios applied to Cart!");
+  }
+
+  function resetRatios() {
+    setRatios({});
+    showToast("Ratios reset");
+  }
+
+  const cartTotals = useMemo(() => {
+    let qty = 0;
+    let amount = 0;
+    cart.forEach((item) => {
+      const product = productByKey.get(item.productKey);
+      const lineQty = Object.values(item.sizeQty).reduce((a, b) => a + b, 0);
+      qty += lineQty;
+      amount += lineQty * (Number(product?.mrp) || 0);
+    });
+    return { qty, amount, lines: cart.length };
+  }, [cart, productByKey]);
+
+  return (
+    <div>
+      <header className="top">
+        <div className="brand">
+          <b>Catalogue</b> → Cart → Grade Ratio
+        </div>
+        <div className="db-status-pill">
+          <span className={`dot ${dbStatus.isConnected ? "connected" : ""}`}></span>
+          {dbStatus.isConnected ? `MongoDB: ${dbStatus.connectionType}` : "Database: Disconnected"}
+        </div>
+      </header>
+
+      <nav className="steps">
+        <button className={tab === "catalogue" ? "active" : ""} onClick={() => setTab("catalogue")}>
+          1. Catalogue <span className="count">{products.length}</span>
+        </button>
+        <button className={tab === "cart" ? "active" : ""} onClick={() => setTab("cart")}>
+          2. Cart <span className="count">{cart.length}</span>
+        </button>
+        <button className={tab === "ratio" ? "active" : ""} onClick={() => setTab("ratio")}>
+          3. Set Ratio <span className="count">{groupsByName.length}</span>
+        </button>
+        <button className={tab === "dbtools" ? "active" : ""} onClick={() => setTab("dbtools")}>
+          🛠️ DB Tools & Status
+        </button>
+      </nav>
+
+      <main>
+        {tab === "catalogue" && (
+          <div className="panel">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+              <div>
+                <h2>Catalogue Source & MongoDB REST API</h2>
+                <p className="hint" style={{ margin: 0 }}>
+                  Upload Excel file or fetch/sync products with MongoDB database backend.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn small primary" onClick={syncProductsToDb} disabled={products.length === 0}>
+                  ⚡ Sync to MongoDB
+                </button>
+                <button className="btn small ghost" onClick={loadProductsFromDb}>
+                  📥 Load from MongoDB
+                </button>
+              </div>
+            </div>
+
+            <div className="upload-box">
+              <div>Drop or choose catalogue Excel file (.xlsx) or use sample database</div>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                ref={fileInput}
+                onChange={(e) => e.target.files[0] && handleFile(e.target.files[0])}
+              />
+            </div>
+
+            {products.length > 0 && (
+              <div style={{ marginTop: 22 }}>
+                <div className="filters">
+                  <input
+                    placeholder="Search style code, name, colour…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{ minWidth: 240 }}
+                  />
+                  <select value={brickFilter} onChange={(e) => setBrickFilter(e.target.value)}>
+                    <option value="">All Bricks</option>
+                    {bricks.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                    {fileName ? `Source: ${fileName}` : ""}
+                  </span>
+                </div>
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Style</th>
+                      <th>Colour</th>
+                      <th>Brick / Category</th>
+                      <th>Sizes</th>
+                      <th>MRP</th>
+                      <th>Grade</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.slice(0, 200).map((p) => {
+                      const pKey = p.productKey || p.key;
+                      return (
+                        <tr key={pKey}>
+                          <td>
+                            <div>{p.styleName}</div>
+                            <div className="code">{p.styleCode}</div>
+                          </td>
+                          <td>{p.colourName}</td>
+                          <td>
+                            {p.brick}
+                            <div className="code">{p.category}</div>
+                          </td>
+                          <td className="sizes-inline">{(p.sizes || []).join(", ")}</td>
+                          <td>₹{p.mrp}</td>
+                          <td>
+                            <select
+                              className="grade-select"
+                              value={pendingGrade[pKey] || "A"}
+                              onChange={(e) => setPendingGrade((g) => ({ ...g, [pKey]: e.target.value }))}
+                            >
+                              {GRADES.map((g) => (
+                                <option key={g} value={g}>{g}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <button className="btn small primary" onClick={() => addToCart(p)}>
+                              Add to Cart
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {products.length === 0 && (
+              <div className="empty-state">
+                Upload a catalogue file or click <b>"Load from MongoDB"</b> / <b>"Seed Sample Data"</b> in DB Tools.
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "cart" && (
+          <div className="panel">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+              <div>
+                <h2>Cart Management</h2>
+                <p className="hint" style={{ margin: 0 }}>
+                  Manage item quantities per size, sets, and grades. Sync state directly with MongoDB.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn small primary" onClick={syncCartToDb} disabled={cart.length === 0}>
+                  💾 Save Cart to MongoDB
+                </button>
+                <button className="btn small ghost" onClick={loadCartFromDb}>
+                  📥 Load Cart from MongoDB
+                </button>
+              </div>
+            </div>
+
+            {cart.length === 0 && <div className="empty-state">Cart is empty — add products from the Catalogue tab.</div>}
+
+            {cart.map((item) => {
+              const product = productByKey.get(item.productKey);
+              if (!product) return null;
+              const gradeClass = "grade-" + item.grade.toLowerCase();
+              return (
+                <div className="cart-item" key={item.id}>
+                  <div className="row1">
+                    <div>
+                      <div className="title">
+                        <span className={"grade-pill " + gradeClass}>{item.grade}</span>
+                        {product.styleName} — {product.colourName}
+                      </div>
+                      <div className="meta">{product.styleCode} · {product.brick} / {product.category}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                      <label style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        Grade
+                        <select
+                          className="grade-select"
+                          style={{ marginLeft: 6 }}
+                          value={item.grade}
+                          onChange={(e) => updateCartItem(item.id, { grade: e.target.value })}
+                        >
+                          {GRADES.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        Sets
+                        <input
+                          className="sets-input"
+                          style={{ marginLeft: 6 }}
+                          type="number"
+                          min="0"
+                          value={item.sets}
+                          onChange={(e) => updateCartItem(item.id, { sets: Number(e.target.value) || 0 })}
+                        />
+                      </label>
+                      <button className="link-btn" onClick={() => removeFromCart(item.id)}>Remove</button>
+                    </div>
+                  </div>
+                  <div className="size-grid">
+                    {(product.sizes || []).map((s) => (
+                      <div className="size-cell" key={s}>
+                        <label>{s}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.sizeQty[s] ?? 0}
+                          onChange={(e) => updateSizeQty(item.id, s, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {cart.length > 0 && (
+              <div className="totals" style={{ marginTop: 16 }}>
+                <div className="stat"><b>{cart.length}</b><span>Cart Lines</span></div>
+                <div className="stat"><b>{cartTotals.qty}</b><span>Total Quantity</span></div>
+                <div className="stat"><b>₹{cartTotals.amount.toLocaleString("en-IN")}</b><span>Amount</span></div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "ratio" && (
+          <div className="panel">
+            <h2>Grade Ratio Calculation Engine</h2>
+            <p className="hint">
+              Define size ratio distribution per attribute group + Grade. Clicking <b>Apply</b> calculates exact quantities per size.
+            </p>
+
+            <div>
+              <label style={{ fontSize: 12.5, color: "var(--ink-soft)", display: "block", marginBottom: 6 }}>
+                Ratio Grouping Level
+              </label>
+              <select className="level-select" value={ratioLevel} onChange={(e) => setRatioLevel(e.target.value)}>
+                {Object.keys(RATIO_LEVELS).map((lvl) => (
+                  <option key={lvl} value={lvl}>{lvl}</option>
+                ))}
+              </select>
+            </div>
+
+            {cart.length === 0 && <div className="empty-state">Add products to the Cart first — groups appear here once the Cart has items.</div>}
+
+            {groupsByName.map(([groupKey, combos]) => (
+              <div className="group-block" key={groupKey}>
+                <div className="group-head">
+                  <span className="gname">{groupKey}</span>
+                  <span className="gcount">{combos.length} grade{combos.length > 1 ? "s" : ""} in cart</span>
+                </div>
+                {combos.map((combo) => {
+                  const k = ratioKey(combo.groupKey, combo.grade);
+                  const val = ratios[k] || {};
+                  const gradeClass = "grade-" + combo.grade.toLowerCase();
+                  return (
+                    <div className="grade-ratio-row" key={k}>
+                      <span className={"grade-pill " + gradeClass}>{combo.grade}</span>
+                      {combo.sizes.map((s) => (
+                        <div className="size-cell" key={s}>
+                          <label>{s}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={val[s] ?? 0}
+                            onChange={(e) => setRatioValue(combo.groupKey, combo.grade, s, e.target.value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+
+            {cart.length > 0 && (
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <button className="btn primary" onClick={applyRatios}>Apply Ratio to Cart</button>
+                <button className="btn ghost" onClick={resetRatios}>Reset Ratios</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "dbtools" && (
+          <div className="panel">
+            <h2>MongoDB Database Tools & REST API Inspector</h2>
+            <p className="hint">
+              Monitor MongoDB database status, perform seed operations, inspect document collections, and run backend CLI tools.
+            </p>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="val">{dbStatus.collections.products ?? 0}</div>
+                <div className="lbl">Products Collection</div>
+              </div>
+              <div className="stat-card">
+                <div className="val">{dbStatus.collections.cartItems ?? 0}</div>
+                <div className="lbl">Cart Items Collection</div>
+              </div>
+              <div className="stat-card">
+                <div className="val">{dbStatus.collections.gradeRatios ?? 0}</div>
+                <div className="lbl">Grade Ratio Rules</div>
+              </div>
+              <div className="stat-card">
+                <div className="val">{dbStatus.collections.users ?? 0}</div>
+                <div className="lbl">Registered Users</div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+              <button className="btn primary" onClick={seedDatabase}>
+                🌱 Seed Sample Data into MongoDB
+              </button>
+              <button className="btn ghost" onClick={loadProductsFromDb}>
+                🔄 Refresh Database Stats
+              </button>
+            </div>
+
+            <div className="banner" style={{ marginTop: 20 }}>
+              <b>Node.js CLI Tool Available:</b> You can also run <code>node new.js</code> from the terminal to execute automated MongoDB database tests, authentication validation, and ratio algorithms via CLI!
+            </div>
+          </div>
+        )}
+      </main>
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+module.exports = [
+  {
+    productKey: "SHIRT-OXFORD-01__Blue",
+    styleCode: "SHIRT-OXFORD-01",
+    styleName: "Oxford Cotton Button-Down Shirt",
+    colourName: "Light Blue",
+    brick: "Shirts",
+    category: "Formalwear",
+    vertical: "Apparel",
+    department: "Mens",
+    sleeve: "Full Sleeve",
+    neck: "Collar",
+    mrp: 1599,
+    sizes: ["S", "M", "L", "XL", "XXL"]
+  },
+  {
+    productKey: "SHIRT-OXFORD-01__White",
+    styleCode: "SHIRT-OXFORD-01",
+    styleName: "Oxford Cotton Button-Down Shirt",
+    colourName: "Pure White",
+    brick: "Shirts",
+    category: "Formalwear",
+    vertical: "Apparel",
+    department: "Mens",
+    sleeve: "Full Sleeve",
+    neck: "Collar",
+    mrp: 1599,
+    sizes: ["S", "M", "L", "XL", "XXL"]
+  },
+  {
+    productKey: "TEE-GRAPHIC-09__Black",
+    styleCode: "TEE-GRAPHIC-09",
+    styleName: "Urban Oversized Graphic Tee",
+    colourName: "Pitch Black",
+    brick: "T-Shirts",
+    category: "Casualwear",
+    vertical: "Apparel",
+    department: "Unisex",
+    sleeve: "Half Sleeve",
+    neck: "Round Neck",
+    mrp: 899,
+    sizes: ["XS", "S", "M", "L", "XL"]
+  },
+  {
+    productKey: "DENIM-SLIM-42__RawIndigo",
+    styleCode: "DENIM-SLIM-42",
+    styleName: "Stretch Selvedge Slim Fit Denim",
+    colourName: "Raw Indigo",
+    brick: "Jeans",
+    category: "Bottomwear",
+    vertical: "Apparel",
+    department: "Mens",
+    sleeve: "—",
+    neck: "—",
+    mrp: 2499,
+    sizes: ["30", "32", "34", "36", "38"]
+  },
+  {
+    productKey: "POLO-PIQUE-12__Emerald",
+    styleCode: "POLO-PIQUE-12",
+    styleName: "Classic Cotton Pique Polo",
+    colourName: "Emerald Green",
+    brick: "Polos",
+    category: "Casualwear",
+    vertical: "Apparel",
+    department: "Mens",
+    sleeve: "Half Sleeve",
+    neck: "Polo Neck",
+    mrp: 1299,
+    sizes: ["S", "M", "L", "XL"]
+  }
+];
